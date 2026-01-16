@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Recherche AIFM</title>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 40px;
+    }
+
+    input, select, button {
+      padding: 8px;
+      margin-right: 10px;
+      margin-bottom: 10px;
+    }
+
+    button {
+      cursor: pointer;
+    }
+
+    table {
+      border-collapse: collapse;
+      margin-top: 20px;
+      width: 100%;
+    }
+
+    th, td {
+      border: 1px solid #ccc;
+      padding: 6px;
+      text-align: left;
+    }
+
+    th {
+      background: #f0f0f0;
+    }
+
+    #status {
+      margin-top: 10px;
+      font-style: italic;
+    }
+
+    #pagination {
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+
+  <h2>Recherche AIFM</h2>
+
+  <!-- Champ texte -->
+  <input
+    type="text"
+    id="q"
+    placeholder="Texte à rechercher"
+  >
+
+  <!-- Champ de recherche -->
+  <select id="field">
+    <option value="AIFM_NAME">Gestionnaire (AIFM)</option>
+    <option value="AIF_NAME">Fonds (AIF)</option>
+    <option value="AIF_SUBFUND_NAME">Sous-fonds</option>
+  </select>
+
+  <!-- Date -->
+  <input
+    type="date"
+    id="date"
+  >
+
+  <!-- Bouton -->
+  <button onclick="search()">OK</button>
+
+  <div id="status"></div>
+
+  <!-- Tableau résultats -->
+  <table id="results" style="display:none;">
+    <thead>
+      <tr>
+	<th>A</th>
+	<th>NNNNNNNN</th>
+	<th>AIFM_NAME</th>
+	<th>STATUS</th>
+	<th>F</th>
+	<th>MMMMMMMM</th>
+	<th>AIF_NAME</th>
+	<th>CCCCCCCC</th>
+	<th>AIF_SUBFUND_NAME</th>
+	<th>STARTING_MANAGEMENT_DATE_OF_THE_AIF</th>
+	<th>ENDING_MANAGEMENT_DATE_OF_THE_AIF</th>
+	<th>REGISTRATION_DATE_OR_INCEPTION_DATE_OF_THE_SUBFUND_OR_AIF</th>
+	<th>CLOSING_DATE_OF_THE_SUBFUND_OR_AIF</th>
+	<th>IMPORT_DATE</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <!-- Pagination -->
+  <div id="pagination" style="display:none;">
+    <button onclick="prevPage()">⬅ Précédent</button>
+    <span id="pageInfo"></span>
+    <button onclick="nextPage()">Suivant ➡</button>
+  </div>
+
+<script>
+let currentPage = 1;
+const pageSize = 100;
+
+async function search(resetPage = true) {
+  if (resetPage) currentPage = 1;
+
+  const q = document.getElementById("q").value.trim();
+  const field = document.getElementById("field").value;
+  const date = document.getElementById("date").value;
+
+  let url = "http://localhost:5678/webhook/aifm/search";
+  const params = [];
+
+  if (q) params.push("q=" + encodeURIComponent(q));
+  if (field) params.push("field=" + encodeURIComponent(field));
+  if (date) params.push("date=" + encodeURIComponent(date));
+
+  params.push("page=" + currentPage);
+  params.push("pageSize=" + pageSize);
+
+  url += "?" + params.join("&");
+
+  const status = document.getElementById("status");
+  const table = document.getElementById("results");
+  const tbody = document.querySelector("#results tbody");
+  const pagination = document.getElementById("pagination");
+
+  status.innerText = "Recherche en cours...";
+  table.style.display = "none";
+  pagination.style.display = "none";
+  tbody.innerHTML = "";
+
+  try {
+    const response = await fetch(url);
+    const data = await response.json();
+
+    if (!Array.isArray(data) || data.length === 0) {
+      status.innerText = "Aucun résultat trouvé.";
+      return;
+    }
+
+    data.forEach(row => {
+      const tr = document.createElement("tr");
+
+      tr.innerHTML = `
+	<td>${row.a || ""}</td>
+	<td>${row.nnnnnnnn || ""}</td>
+	<td>${row.aifm_name || ""}</td>
+	<td>${row.status || ""}</td>
+	<td>${row.f || ""}</td>
+	<td>${row.mmmmmmmm || ""}</td>
+	<td>${row.aif_name || ""}</td>
+	<td>${row.cccccccc || ""}</td>
+	<td>${row.aif_subfund_name || ""}</td>
+	<td>${row.starting_management_date_of_the_aif || ""}</td>
+	<td>${row.ending_management_date_of_the_aif || ""}</td>
+	<td>${row.registration_date_or_inception_date_of_the_subfund_or_aif || ""}</td>
+	<td>${row.closing_date_of_the_subfund_or_aif || ""}</td>
+	<td>${row.import_date || ""}</td>
+      `;
+
+      tbody.appendChild(tr);
+    });
+
+    table.style.display = "table";
+    pagination.style.display = "block";
+    status.innerText = data.length + " résultat(s)";
+    document.getElementById("pageInfo").innerText = "Page " + currentPage;
+
+  } catch (e) {
+    status.innerText = "Erreur lors de la recherche.";
+  }
+}
+
+function nextPage() {
+  currentPage++;
+  search(false);
+}
+
+function prevPage() {
+  if (currentPage > 1) {
+    currentPage--;
+    search(false);
+  }
+}
+</script>
+
+</body>
+</html>
