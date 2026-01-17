@@ -20,6 +20,22 @@
       cursor: pointer;
     }
 
+    #exportBtn {
+      background-color: #28a745;
+      color: white;
+      border: none;
+      border-radius: 4px;
+    }
+
+    #exportBtn:hover {
+      background-color: #218838;
+    }
+
+    #exportBtn:disabled {
+      background-color: #ccc;
+      cursor: not-allowed;
+    }
+
     table {
       border-collapse: collapse;
       margin-top: 20px;
@@ -72,6 +88,7 @@
 
   <!-- Bouton -->
   <button onclick="search()">OK</button>
+  <button id="exportBtn" onclick="exportToExcel()" disabled>📊 Exporter en Excel</button>
 
   <div id="status"></div>
 
@@ -105,9 +122,11 @@
     <button onclick="nextPage()">Suivant ➡</button>
   </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 let currentPage = 1;
 const pageSize = 100;
+let currentResults = [];
 
 // 🔐 Clé API (POC / test)
 const API_KEY = "PWCLUXEMBOURG2026";
@@ -141,11 +160,13 @@ async function search(resetPage = true) {
   const table = document.getElementById("results");
   const tbody = document.querySelector("#results tbody");
   const pagination = document.getElementById("pagination");
+  const exportBtn = document.getElementById("exportBtn");
 
   status.innerText = "Recherche en cours...";
   table.style.display = "none";
   pagination.style.display = "none";
   tbody.innerHTML = "";
+  exportBtn.disabled = true;
 
   try {
     const response = await fetch(url);
@@ -153,8 +174,11 @@ async function search(resetPage = true) {
 
     if (!Array.isArray(data) || data.length === 0) {
       status.innerText = "Aucun résultat trouvé.";
+      currentResults = [];
       return;
     }
+
+    currentResults = data;
 
     data.forEach(row => {
       const tr = document.createElement("tr");
@@ -181,12 +205,53 @@ async function search(resetPage = true) {
 
     table.style.display = "table";
     pagination.style.display = "block";
+    exportBtn.disabled = false;
     status.innerText = data.length + " résultat(s)";
     document.getElementById("pageInfo").innerText = "Page " + currentPage;
 
   } catch (e) {
     status.innerText = "Erreur lors de la recherche (tunnel inactif ?)";
+    currentResults = [];
   }
+}
+
+function exportToExcel() {
+  if (currentResults.length === 0) {
+    alert("Aucun résultat à exporter.");
+    return;
+  }
+
+  // Préparer les données pour l'export
+  const exportData = currentResults.map(row => ({
+    "A": row.a || "",
+    "NNNNNNNN": row.nnnnnnnn || "",
+    "AIFM_NAME": row.aifm_name || "",
+    "STATUS": row.status || "",
+    "F": row.f || "",
+    "MMMMMMMM": row.mmmmmmmm || "",
+    "AIF_NAME": row.aif_name || "",
+    "CCCCCCCC": row.cccccccc || "",
+    "AIF_SUBFUND_NAME": row.aif_subfund_name || "",
+    "STARTING_MANAGEMENT_DATE_OF_THE_AIF": row.starting_management_date_of_the_aif || "",
+    "ENDING_MANAGEMENT_DATE_OF_THE_AIF": row.ending_management_date_of_the_aif || "",
+    "REGISTRATION_DATE_OR_INCEPTION_DATE_OF_THE_SUBFUND_OR_AIF": row.registration_date_or_inception_date_of_the_subfund_or_aif || "",
+    "CLOSING_DATE_OF_THE_SUBFUND_OR_AIF": row.closing_date_of_the_subfund_or_aif || "",
+    "IMPORT_DATE": row.import_date || ""
+  }));
+
+  // Créer un nouveau workbook et une worksheet
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.json_to_sheet(exportData);
+
+  // Ajouter la worksheet au workbook
+  XLSX.utils.book_append_sheet(wb, ws, "Résultats AIFM");
+
+  // Générer le nom du fichier avec la date
+  const date = new Date().toISOString().split('T')[0];
+  const filename = `AIFM_Recherche_${date}.xlsx`;
+
+  // Télécharger le fichier
+  XLSX.writeFile(wb, filename);
 }
 
 function nextPage() {
@@ -204,5 +269,3 @@ function prevPage() {
 
 </body>
 </html>
-
-
