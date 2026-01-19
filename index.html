@@ -134,7 +134,7 @@ const API_KEY = "PWCLUXEMBOURG2026";
 // 🌐 URL Cloudflare temporaire
 const API_BASE_URL = "https://roman-thereby-requesting-teddy.trycloudflare.com/webhook/aifm/search";
 
-  async function search(resetPage = true) {
+async function search(resetPage = true) {
   if (resetPage) currentPage = 1;
 
   const q = document.getElementById("q").value.trim();
@@ -215,14 +215,64 @@ const API_BASE_URL = "https://roman-thereby-requesting-teddy.trycloudflare.com/w
   }
 }
 
-function exportToExcel() {
-  if (currentResults.length === 0) {
+async function fetchAllResults() {
+  let allResults = [];
+  let page = 1;
+  let hasMore = true;
+
+  const q = document.getElementById("q").value.trim();
+  const field = document.getElementById("field").value;
+  const date = document.getElementById("date").value;
+
+  const status = document.getElementById("status");
+  status.innerText = "Récupération de tous les résultats...";
+
+  while (hasMore) {
+    let url = API_BASE_URL;
+    const params = [];
+
+    params.push("key=" + encodeURIComponent(API_KEY));
+    if (q) params.push("q=" + encodeURIComponent(q));
+    if (field) params.push("field=" + encodeURIComponent(field));
+    if (date) params.push("date=" + encodeURIComponent(date));
+
+    params.push("page=" + page);
+    params.push("pageSize=" + pageSize);
+
+    url += "?" + params.join("&");
+
+    try {
+      const response = await fetch(url);
+      const data = await response.json();
+
+      if (!Array.isArray(data) || data.length === 0) {
+        hasMore = false;
+      } else {
+        allResults = allResults.concat(data);
+        page++;
+      }
+    } catch (e) {
+      status.innerText = "Erreur lors de la récupération des résultats.";
+      hasMore = false;
+    }
+  }
+
+  status.innerText = allResults.length + " résultat(s) trouvés au total.";
+  return allResults;
+}
+
+async function exportToExcel() {
+  const status = document.getElementById("status");
+  status.innerText = "Préparation de l'export...";
+
+  const allResults = await fetchAllResults();
+
+  if (allResults.length === 0) {
     alert("Aucun résultat à exporter.");
     return;
   }
 
-  // Préparer les données pour l'export
-  const exportData = currentResults.map(row => ({
+  const exportData = allResults.map(row => ({
     "A": row.a || "",
     "NNNNNNNN": row.nnnnnnnn || "",
     "AIFM_NAME": row.aifm_name || "",
@@ -239,19 +289,15 @@ function exportToExcel() {
     "IMPORT_DATE": row.import_date || ""
   }));
 
-  // Créer un nouveau workbook et une worksheet
   const wb = XLSX.utils.book_new();
   const ws = XLSX.utils.json_to_sheet(exportData);
-
-  // Ajouter la worksheet au workbook
   XLSX.utils.book_append_sheet(wb, ws, "Résultats AIFM");
 
-  // Générer le nom du fichier avec la date
   const date = new Date().toISOString().split('T')[0];
-  const filename = `AIFM_Recherche_${date}.xlsx`;
+  const filename = `AIFM_Recherche_${date}_TOUS.xlsx`;
 
-  // Télécharger le fichier
   XLSX.writeFile(wb, filename);
+  status.innerText = "Export terminé !";
 }
 
 function nextPage() {
@@ -269,6 +315,3 @@ function prevPage() {
 
 </body>
 </html>
-
-
-
